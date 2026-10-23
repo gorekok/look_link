@@ -5,14 +5,16 @@ import torch
 from torchvision import models, transforms
 import numpy as np
 import faiss
+import os
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="LookLink | AI Visual Search", layout="wide")
 
-# --- ÖZEL CSS TASARIMI (HATA DÜZELTİLDİ) ---
+# --- ÖZEL CSS TASARIMI ---
 st.markdown("""
     <style>
-    /* Karanlık mod çakışmasını önlemek için tüm arka planları beyaza zorla */
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600&display=swap');
+    
     .stApp, .main, .block-container {
         background-color: #FAFAFA !important;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -22,25 +24,28 @@ st.markdown("""
     footer {visibility: hidden;}
     .stDeployButton {display:none;}
     
-    h1 {
-        font-weight: 300 !important;
-        letter-spacing: 5px;
-        color: #000000 !important;
+    /* Üst Bar Tasarımı */
+    .top-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background-color: #262730; 
+        color: #FFFFFF;
         text-align: center;
-        font-size: 3rem !important;
-    }
-    
-    .slogan {
+        padding: 15px 0;
+        z-index: 999999;
+        font-family: 'Fredoka', sans-serif;
         font-size: 2.5rem;
-        font-weight: 800;
-        text-align: center;
-        color: #111111 !important;
-        margin-top: -20px;
-        margin-bottom: 40px;
-        letter-spacing: 1px;
+        letter-spacing: 4px;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
     }
     
-    /* Ana Buton Stili - Belirgin Beyaz Arka Plan ve Siyah Çerçeve */
+    .block-container {
+        padding-top: 120px !important;
+    }
+    
+    /* Buton Stilleri */
     .stButton>button {
         background-color: #FFFFFF !important;
         color: #000000 !important;
@@ -58,7 +63,6 @@ st.markdown("""
         color: #FFFFFF !important;
     }
     
-    /* İncele Butonu Stili */
     .stLinkButton>a {
         background-color: #FFFFFF !important;
         color: #000000 !important;
@@ -78,6 +82,8 @@ st.markdown("""
     
     img { border-radius: 0px !important; }
     </style>
+    
+    <div class="top-bar">LOOKLINK</div>
 """, unsafe_allow_html=True)
 
 # --- YAPAY ZEKA MODELLERİ ---
@@ -114,14 +120,18 @@ faiss_index = create_dummy_database()
 preprocess = transforms.Compose([transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor(), transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
 
 # --- ARAYÜZ MANTIĞI ---
-st.title("LOOKLINK")
-st.markdown("<div class='slogan'>Görsel Yükle. Keşfet. Satın Al.</div>", unsafe_allow_html=True)
 
 yuklenen_gorsel = st.file_uploader("", type=["jpg", "png", "jpeg"], help="Kombin fotoğrafı yükleyin")
 
 if yuklenen_gorsel is None:
-    st.image("https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2000&auto=format&fit=crop", use_container_width=True)
+    # Kullanıcı fotoğraf yüklemediğinde senin özel tasarımın görünür
+    gorsel_yolu = "sitegorseli.jpeg"
+    if os.path.exists(gorsel_yolu):
+        st.image(gorsel_yolu, use_container_width=True)
+    else:
+        st.warning(f"Lütfen '{gorsel_yolu}' dosyasını LookLink klasörünün içine kopyalayın.")
 else:
+    # Fotoğraf Yüklendikten Sonraki Vitrin Ekranı
     image = Image.open(yuklenen_gorsel).convert('RGB')
     col1, col2 = st.columns([1, 2], gap="large")
     
@@ -137,7 +147,6 @@ else:
                     kutu = sonuclar[0].boxes[0].xyxy[0].tolist() 
                     kes_gorsel = image.crop((kutu[0], kutu[1], kutu[2], kutu[3]))
                     
-                    # PYTORCH HATASI BURADA ÇÖZÜLDÜ
                     with torch.no_grad():
                         vec = resnet_model(torch.unsqueeze(preprocess(kes_gorsel), 0)).numpy()
                         
